@@ -8,6 +8,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
 
+import com.nedap.university.utils.ApplicationThread;
 import com.nedap.university.utils.Utils;
 
 public class ClientApplication {
@@ -27,16 +28,42 @@ public class ClientApplication {
 				reader = new BufferedReader(new InputStreamReader(System.in));
 
 				while (running) {
+					byte[] data;
+					DatagramPacket pkt;
+
 					String input = reader.readLine();
 					String[] splitInput = input.split(" ");
 					switch (splitInput[0].toUpperCase()) {
 						case "0" :
-							break;
+							if (splitInput.length > 1) {
+								new ApplicationThread(true, splitInput[1], serverAddress, port)
+										.start();
+								break;
+							}
+							else {
+								err("Please enter the file name.");
+								break;
+							}
 
 						case "1" :
-							break;
+							if (splitInput.length > 1) {
+								data = Utils.createFlagData(Utils.RQ_FILE,
+										splitInput[1].getBytes());
+								pkt = new DatagramPacket(data, data.length,
+										serverAddress, port);
+								new ApplicationThread(true, pkt).start();
+								break;
+							}
+							else {
+								err("Please enter the file name.");
+								break;
+							}
 
 						case "2" :
+							data = Utils.createFlagData(Utils.RQ_LIST, null);
+							pkt = new DatagramPacket(data, data.length,
+									serverAddress, port);
+							new ApplicationThread(true, pkt).start();
 							break;
 
 						case "EXIT" :
@@ -84,7 +111,6 @@ public class ClientApplication {
 		}
 		catch (IOException e) {
 			e.getMessage();
-			e.printStackTrace();
 			return false;
 		}
 
@@ -95,7 +121,7 @@ public class ClientApplication {
 	}
 
 	public static void err(String msg) {
-		System.err.println("ERROR " + msg);
+		System.err.println("ERROR: " + msg);
 	}
 
 }

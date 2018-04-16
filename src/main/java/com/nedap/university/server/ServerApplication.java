@@ -5,6 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 
+import com.nedap.university.utils.ApplicationThread;
 import com.nedap.university.utils.Utils;
 
 public class ServerApplication extends Thread {
@@ -27,6 +28,7 @@ public class ServerApplication extends Thread {
 			DatagramPacket pkt = new DatagramPacket(buf, buf.length);
 			try {
 				serverSocket.receive(pkt);
+				new ApplicationThread(false, pkt).start();
 			}
 			catch (IOException e) {
 				e.getMessage();
@@ -41,7 +43,7 @@ public class ServerApplication extends Thread {
 		System.out.println(msg);
 	}
 
-	protected static void err(String msg) {
+	public static void err(String msg) {
 		System.err.println(msg);
 	}
 
