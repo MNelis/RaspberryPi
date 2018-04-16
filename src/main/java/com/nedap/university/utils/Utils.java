@@ -1,8 +1,10 @@
 package com.nedap.university.utils;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Utils {
 	public static final String CLIENTPATH = "C:/Users/marjan.nelis/Desktop/client/";
@@ -40,48 +42,36 @@ public class Utils {
 			+ "         '~'         \n";
 
 	
-	public static byte[] getFileContents(boolean isCLient, String fileName) {
+	protected static byte[] getFileContents(boolean isCLient, String fileName) {
 		String path = SERVERPATH;
 		if (isCLient) {
 			path = CLIENTPATH;
 		}
-				
-		File fileToTransmit = new File(path + fileName); // "C:/rdtcInput1.png"
-		try (FileInputStream fileStream = new FileInputStream(fileToTransmit)) {
-			byte[] fileContents = new byte[(int) fileToTransmit.length()];
-
-			for (int i = 0; i < fileContents.length; i++) {
-				int nextByte = fileStream.read();
-				if (nextByte == -1) {
-					throw new Exception("File size is smaller than reported");
-				}
-
-				fileContents[i] = (byte) nextByte;
-			}
-			return fileContents;
+		
+		Path pathFile = Paths.get(path + fileName);
+		try {
+			byte[] data = Files.readAllBytes(pathFile);
+			return data;
 		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			System.err.println(e.getStackTrace());
+		catch (IOException e) {			
+			e.printStackTrace();
 			return null;
 		}
 	}
 	
-	public static void setFileContents(boolean isClient, byte[] fileContents, String fileName) {
+	protected static void setFileContents(boolean isClient, byte[] fileContents, String fileName) {
 		String path = SERVERPATH;
 		if (isClient) {
 			path = CLIENTPATH;
 		}
 		
-		File fileToWrite = new File(path + fileName);
-		try (FileOutputStream fileStream = new FileOutputStream(fileToWrite)) {
-			for (byte fileContent : fileContents) {
-				fileStream.write(fileContent);
-			}
+		Path pathFile = Paths.get(path + fileName);
+		try {
+			Files.write(pathFile, fileContents);
 		}
-		catch (Exception e) {
+		catch (IOException e) {
 			System.err.println(e.getMessage());
-			System.err.println(e.getStackTrace());
+			e.printStackTrace();
 		}
 	}
 	
@@ -132,42 +122,8 @@ public class Utils {
 		return result;
 	}
 	
-	public static byte[][] fragmentData(byte fileID, byte[] fileContents, String fileName) {
-		int filePointer = 0;
-		int pktNo = 1;
-		int numberOfPackets = fileContents.length / DATASIZE + 1;
-		byte[][] pkts = new byte[numberOfPackets+1][HEADER + DATASIZE];
-		
-		byte[] data = (numberOfPackets + " " + fileName).getBytes();
-		
-		pkts[0] = new byte[HEADER + data.length];
-		
-		pkts[0][0] = DATA_ANN;
-		pkts[0][1] = fileID;
-//		pkts[0][2] = (byte) numberOfPackets;
 
-		System.arraycopy(data, 0, pkts[0], HEADER, data.length);
-
-		// creates new packets as long as necessary
-		while (filePointer < fileContents.length) {
-			// TOoccured = false;
-			// create a new packet of appropriate size
-			int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
-			pkts[pktNo] = new byte[HEADER + datalen];
-
-			pkts[pktNo][0] = DATA;
-			pkts[pktNo][1] = fileID;
-			pkts[pktNo][2] = (byte) (pktNo%PKTNORANGE);
-			// copy data bytes from the input file into data part of the packet, i.e., after
-			// the header
-			System.arraycopy(fileContents, filePointer, pkts[pktNo], HEADER, datalen);
-			filePointer += DATASIZE;
-			pktNo++;
-		}
-		return pkts;
-	}
-
-	public static byte[] defragmentData(byte[][] pkts) {
+	protected static byte[] defragmentData(byte[][] pkts) {
 		int length = 0;
 		for (int i = 1; i < pkts.length;  i ++) {
 			length += pkts[i].length;

@@ -50,14 +50,12 @@ public class ApplicationThread extends Thread {
 		init();
 	}
 
-	public void init() {
+	private void init() {
 		if (pkt.getLength() == 0) {
 			if (Utils.containsFile(isClient, msg)) {
 				print("File '" + msg + "' found.");
 				fileID = (byte) (Math.random() * 256);
-				byte[][] dataPkts = Utils.fragmentData(fileID,
-						Utils.getFileContents(isClient, msg), msg);
-				sendFile(dataPkts);
+				sendFile(fileID, Utils.getFileContents(isClient, msg), msg);
 			}
 			else {
 				err("File '" + msg + "' not found.");
@@ -83,7 +81,7 @@ public class ApplicationThread extends Thread {
 		}
 		socket.close();
 	}
-	public void sendPacket(DatagramPacket pkt, byte[] data) {
+	private void sendPacket(DatagramPacket pkt, byte[] data) {
 		address = pkt.getAddress();
 		port = pkt.getPort();
 
@@ -99,7 +97,7 @@ public class ApplicationThread extends Thread {
 		}
 	}
 
-	public void receivePacket() throws SocketException, IOException {
+	private void receivePacket() throws SocketException, IOException {
 
 		DatagramPacket pkt = new DatagramPacket(Utils.BUF, Utils.BUF.length);
 		socket.setSoTimeout(10000);
@@ -109,7 +107,7 @@ public class ApplicationThread extends Thread {
 		processPacket(pkt);
 	}
 
-	public void processPacket(DatagramPacket pkt) throws IOException {
+	private void processPacket(DatagramPacket pkt) throws IOException {
 		int flag = pkt.getData()[0];
 		byte[] data = null;
 		if (pkt.getLength() > 4) {
@@ -125,7 +123,7 @@ public class ApplicationThread extends Thread {
 		switch (flag) {
 			// Both applications.
 			case Utils.ACK :
-//				print("Received ACK.");
+				// print("Received ACK.");
 				if (pkt.getData()[1] == fileID
 						&& pkt.getData()[2] == packetID) {
 					receivedACK = true;
@@ -146,10 +144,9 @@ public class ApplicationThread extends Thread {
 				if (Utils.containsFile(false, fileName)) {
 					print("File found on the server.");
 					fileID = (byte) (Math.random() * 256);
-					byte[][] dataPkts = Utils.fragmentData(fileID,
+					sendFile(fileID,
 							Utils.getFileContents(isClient, fileName),
 							fileName);
-					sendFile(dataPkts);
 				}
 				else {
 					print("File not found on the server.");
@@ -172,14 +169,14 @@ public class ApplicationThread extends Thread {
 			case Utils.DATA_ANN :
 				currentPktNo = 0;
 				receiving = true;
-				String[] dataSplit =  new String(data).split(" ", 2);
+				String[] dataSplit = new String(data).split(" ", 2);
 				int expNoPkts = Integer.parseInt(dataSplit[0]);
 				String name = dataSplit[1];
-				
-				print("Received announcement for file '" + name
-						+ "', " + (expNoPkts-1) + " packets expected.");
-				
-				pkts = new byte[expNoPkts][Utils.DATASIZE];
+
+				print("Received announcement for file '" + name + "', "
+						+ (expNoPkts - 1) + " packets expected.");
+
+				pkts = new byte[expNoPkts][0];
 				pkts[currentPktNo] = name.getBytes();
 
 				byte[] dataACK1 = Arrays.copyOfRange(pkt.getData(), 0,
@@ -187,33 +184,34 @@ public class ApplicationThread extends Thread {
 				dataACK1[0] = Utils.ACK;
 				sendPacket(pkt, dataACK1);
 
-				receiveFile(isClient);
+				receiveFile();
 				break;
 
 			// Both applications.
 			case Utils.DATA :
 				if (receiving) {
-					if ((currentPktNo + 1)%Utils.PKTNORANGE == pkt.getData()[2]) {
+					if ((currentPktNo + 1)
+							% Utils.PKTNORANGE == pkt.getData()[2]) {
 						currentPktNo++;
 						pkts[currentPktNo] = data;
 						byte[] dataACK = Arrays.copyOfRange(pkt.getData(), 0,
 								Utils.HEADER);
 						dataACK[0] = Utils.ACK;
 						sendPacket(pkt, dataACK);
-//						print("Send ACK.");
+						// print("Send ACK.");
 
 						if (currentPktNo == pkts.length - 1) {
 							byte[] fileContents = Utils.defragmentData(pkts);
 							String nameFile = new String(pkts[0]);
 							print("Received " + nameFile + ", "
-									+ fileContents.length + " bytes, " + (pkts.length-1) + " packets.");
-							Utils.setFileContents(isClient, fileContents, nameFile);
+									+ fileContents.length + " bytes, "
+									+ (pkts.length - 1) + " packets.");
+							Utils.setFileContents(isClient, fileContents,
+									nameFile);
 							receiving = false;
 						}
 					}
-					
-					
-					
+
 				}
 				else {
 					err("Did not receive the announcement of this data.");
@@ -237,13 +235,36 @@ public class ApplicationThread extends Thread {
 		}
 	}
 
-	private void sendFile(byte[][] pkts) {
-		int i = 0;
+	private void sendFile(byte fileID, byte[] fileContents,
+			String fileName) {
+		int filePointer = 0;
+		int pktNo = 0;
+		int numberOfPackets = fileContents.length / Utils.DATASIZE;
+		if (Utils.DATASIZE*numberOfPackets != fileContents.length) {
+			numberOfPackets++;
+		}
+		
+		print("" + numberOfPackets);
+		byte[] nxtPkt;
+//		byte[][] pkts = new byte[numberOfPackets + 1][Utils.HEADER
+//				+ Utils.DATASIZE];
+
+		byte[] data = (numberOfPackets + " " + fileName).getBytes();
+
+		nxtPkt = new byte[Utils.HEADER + data.length];
+
+		nxtPkt[0] = Utils.DATA_ANN;
+		nxtPkt[1] = fileID;
+		// pkts[0][2] = (byte) numberOfPackets;
+
+		System.arraycopy(data, 0, nxtPkt, Utils.HEADER, data.length);
+
 		print("Sending...");
-		while (i < pkts.length) {
-			sendPacket(pkt, pkts[i]);
-//			print("Send pkt " + i + ".");
-			packetID = pkts[i][2];
+		// creates new packets as long as necessary
+		while (filePointer < fileContents.length) {
+			sendPacket(pkt, nxtPkt);
+			print("Send pkt " + pktNo + ".");
+			packetID = nxtPkt[2];
 			receivedACK = false;
 			try {
 				receivePacket();
@@ -255,13 +276,51 @@ public class ApplicationThread extends Thread {
 				e.getMessage();
 			}
 			if (receivedACK) {
-				i++;
+				pktNo++;
+				// create a new packet of appropriate size
+				int datalen = Math.min(Utils.DATASIZE,
+						fileContents.length - filePointer);
+				nxtPkt = new byte[Utils.HEADER + datalen];
+
+				nxtPkt[0] = Utils.DATA;
+				nxtPkt[1] = fileID;
+				nxtPkt[2] = (byte) (pktNo % Utils.PKTNORANGE);
+				// copy data bytes from the input file into data part of the
+				// packet, i.e., after
+				// the header
+				System.arraycopy(fileContents, filePointer, nxtPkt,
+						Utils.HEADER, datalen);
+				filePointer += Utils.DATASIZE;
 			}
 		}
 		print("File successfully transfered.");
 	}
 
-	private void receiveFile(boolean isClient)
+	// private void sendFile(byte[][] pkts) {
+	// int i = 0;
+	// print("Sending...");
+	// while (i < pkts.length) {
+	// sendPacket(pkt, pkts[i]);
+	// // print("Send pkt " + i + ".");
+	// packetID = pkts[i][2];
+	// receivedACK = false;
+	// try {
+	// receivePacket();
+	// }
+	// catch (SocketException e) {
+	// print(e.getMessage());
+	// }
+	// catch (IOException e) {
+	// e.getMessage();
+	// }
+	// if (receivedACK) {
+	// i++;
+	// }
+	// }
+	// print("File successfully transfered.");
+	// }
+
+	private void receiveFile()
 			throws SocketException, IOException {
 		print("Receiving...");
 		while (receiving) {
