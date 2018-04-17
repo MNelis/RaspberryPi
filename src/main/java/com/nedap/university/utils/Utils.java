@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class Utils {
-	public static final String CLIENTPATH = "C:/Users/marjan.nelis/Desktop/client/";
+	public static String CLIENTPATH = "C:/Users/marjan.nelis/Desktop/client/";
 	public static final String SERVERPATH = "C:/Users/marjan.nelis/Desktop/server/";
 	
 	public static final int DEFAULTPORT = 8888;
@@ -20,26 +20,28 @@ public class Utils {
 	
 	public static final int PKTNORANGE = 128;
 
-	public static final int ACK = 0b01000000;
-	public static final int ACK_LIST = 0b01001000;
-	public static final int RQ_FILE = 0b01000100;
-	public static final int RQ_LIST = 0b01000010;
-	public static final int DATA = 0b00100000;
-	public static final int DATA_ANN = 0b00101000;
-	public static final int MSG_DSC = 0b00010000;
-	public static final int MSG_ERR = 0b00011000;
+	public static final int ACK 		= 0b01000000;
+	public static final int ACK_LIST 	= 0b01001000;
+	public static final int ACK_PAUSE 	= 0b01000100;
+	public static final int ACK_UNPAUSE = 0b01000110;
+	public static final int RQ_FILE	 	= 0b01000010;
+	public static final int RQ_LIST 	= 0b01000001;
+	public static final int DATA 		= 0b00100000;
+	public static final int DATA_ANN 	= 0b00101000;
+	public static final int MSG_DSC 	= 0b00010000;
+	public static final int MSG_ERR 	= 0b00011000;
 
 	public static final String RASPBERRYMENU = 
 			  "     .~~.   .~~.     \n"
 			+ "    '. \\ ' ' / .'    Welcome!\n" 
 			+ "     .~ .~~~..~.     \n"
-			+ "    : .~.'~'.~. :    0 <filename> ....... send a file.\n"
-			+ "   ~ (   ) (   ) ~   1 <filename> .... request a file.\n"
-			+ "  ( : '~'.~.'~' : )  2 ............ request file list.\n"
-			+ "   ~ .~ (   ) ~. ~   EXIT .......................exit.\n"
-			+ "    (  : '~' :  )    \n" 
-			+ "     '~ .~~~. ~'     \n"
-			+ "         '~'         \n";
+			+ "    : .~.'~'.~. :    0 ................. upload a file.\n"
+			+ "   ~ (   ) (   ) ~   1 ............... download a file.\n"
+			+ "  ( : '~'.~.'~' : )  2 ................ list all files.\n"
+			+ "   ~ .~ (   ) ~. ~   3 ..... list current up/downloads.\n"
+			+ "    (  : '~' :  )    4 .... pause current up/downloads.\n" 
+			+ "     '~ .~~~. ~'     5 ................... change path.\n"
+			+ "         '~'         6 .............. exit application.\n";
 
 	
 	protected static byte[] getFileContents(boolean isCLient, String fileName) {
@@ -137,5 +139,33 @@ public class Utils {
 			filePointer += pkts[i].length;
 		}
 		return fileContents;
+	}
+	
+	public static boolean setClientPath(String newPath) {
+		if (newPath.length() > 0) {
+			Path path =  Paths.get(newPath);
+			if (Files.exists(path)) {
+				if (newPath.substring(newPath.length()-1).equals("/")) {
+					CLIENTPATH = newPath;
+				}
+				else {
+					CLIENTPATH = newPath + "/";
+				}
+				
+				System.out.println("Successfully changed the path.");
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		else {
+			System.out.println("Path is unchanged.");
+			return true;
+		}
+	}	
+	
+	public static String getClientPath() {
+		return CLIENTPATH;
 	}
 }
