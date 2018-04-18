@@ -247,8 +247,7 @@ public class ApplicationThread extends Thread {
 				expNoPkts = Integer.parseInt(dataSplit[0].substring(40));
 				filename = dataSplit[1];
 
-				print("Received announcement for file '" + filename + "', "
-						+ (expNoPkts) + " packets expected.");
+				print("Received announcement for file '" + filename + "'.");
 
 				pkts = new byte[expNoPkts + 1][0];
 				pkts[currentPktNo] = filename.getBytes();
@@ -292,9 +291,6 @@ public class ApplicationThread extends Thread {
 
 							bytesFile = fileContents.length;
 							String nameFile = new String(pkts[0]);
-							print("Received " + nameFile + ", "
-									+ fileContents.length + " bytes, "
-									+ (pkts.length - 1) + " packets.");
 							Utils.setFileContents(isClient, fileContents,
 									nameFile);
 							receiving = false;

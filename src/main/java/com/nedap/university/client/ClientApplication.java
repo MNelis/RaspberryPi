@@ -7,6 +7,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +33,9 @@ public class ClientApplication extends Thread {
 	 */
 	public void run() {
 		if (locateServer()) {
+			Path currentRelativePath = Paths.get("");
+			String s = currentRelativePath.toAbsolutePath().toString();
+			Utils.setClientPath(s);
 			print(Utils.RASPBERRYMENU);
 
 			boolean running = true;

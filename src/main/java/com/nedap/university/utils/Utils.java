@@ -185,11 +185,11 @@ public class Utils {
 		if (newPath.length() > 0) {
 			Path path = Paths.get(newPath);
 			if (Files.exists(path)) {
-				if (newPath.substring(newPath.length() - 1).equals("/")) {
+				if (newPath.substring(newPath.length() - 1).equals("/") || newPath.substring(newPath.length() - 1).equals("\\")) {
 					CLIENTPATH = newPath;
 				}
 				else {
-					CLIENTPATH = newPath + "/";
+					CLIENTPATH = newPath + "\\";
 				}
 
 				System.out.println("Successfully set this path.");
