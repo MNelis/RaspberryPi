@@ -17,9 +17,13 @@ public class ServerApplication extends Thread {
 			serverSocket = new DatagramSocket(Utils.DEFAULTPORT);
 		}
 		catch (SocketException e) {
-			e.getMessage();
+			print(e.getMessage());
 			e.printStackTrace();
 		}
+	}
+	
+	public static void main(String args[]) {
+		new ServerApplication().start();
 	}
 
 	/**

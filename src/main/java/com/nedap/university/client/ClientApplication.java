@@ -53,37 +53,52 @@ public class ClientApplication extends Thread {
 					switch (splitInput[0].toUpperCase()) {
 
 						case "0" : // upload file to server.
-							print("(upload) Enter the filename:");
-							input = reader.readLine();
-							if (input.length() > 0) {
-								(transferThread = new ApplicationThread(true,
-										input, serverAddress, port)).start();
-								transferThread.setName(input + " (upload)");
-								currentThreads.add(transferThread);
-								break;
+							getThreads();
+							if (currentThreads.size() > 0) {
+								print("Since transfering several files at the same time doesn't work as desired, "
+										+ "this function is disabled in this version.");
 							}
 							else {
-								err(" Please enter the filename:");
-								break;
+								print("(upload) Enter the filename:");
+								input = reader.readLine();
+								if (input.length() > 0) {
+									(transferThread = new ApplicationThread(
+											true, input, serverAddress, port))
+													.start();
+									transferThread.setName(input + " (upload)");
+									currentThreads.add(transferThread);
+									break;
+								}
+								else {
+									err(" Please enter the filename:");
+									break;
+								}
 							}
 
 						case "1" : // download file to server
-							print("(download) Enter the filename:");
-							input = reader.readLine();
-							if (input.length() > 0) {
-								data = Utils.createFlagData(Utils.RQ_FILE,
-										input.getBytes());
-								pkt = new DatagramPacket(data, data.length,
-										serverAddress, port);
-								(transferThread = new ApplicationThread(true,
-										pkt)).start();
-								transferThread.setName(input + " (download)");
-								currentThreads.add(transferThread);
-								break;
+							if (currentThreads.size() > 0) {
+								print("Since transfering several files at the same time doesn't work as desired, "
+										+ "this function is disabled in this version.");
 							}
 							else {
-								err("Please enter the file name:");
-								break;
+								print("(download) Enter the filename:");
+								input = reader.readLine();
+								if (input.length() > 0) {
+									data = Utils.createFlagData(Utils.RQ_FILE,
+											input.getBytes());
+									pkt = new DatagramPacket(data, data.length,
+											serverAddress, port);
+									(transferThread = new ApplicationThread(
+											true, pkt)).start();
+									transferThread
+											.setName(input + " (download)");
+									currentThreads.add(transferThread);
+									break;
+								}
+								else {
+									err("Please enter the file name:");
+									break;
+								}
 							}
 
 						case "2" : // request file list
