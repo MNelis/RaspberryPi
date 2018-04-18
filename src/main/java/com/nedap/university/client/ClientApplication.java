@@ -26,18 +26,29 @@ public class ClientApplication extends Thread {
 		new ClientApplication().start();
 	}
 
+	/**
+	 * Runs the client application. It reads the input from the console and processes it.	
+	 */
 	public void run() {
 		if (locateServer()) {
 			print(Utils.RASPBERRYMENU);
+
 			boolean running = true;
 			try {
 				reader = new BufferedReader(new InputStreamReader(System.in));
-
+				print("Enter the path to the folder we can read/write files:");
+				String input = reader.readLine();
+				boolean validPath = Utils.setClientPath(input);
+				while (!validPath) {
+					print("Invalid path, please enter a valid path:");
+					input = reader.readLine();
+					validPath = Utils.setClientPath(input);
+				}
 				while (running) {
 					byte[] data;
 					DatagramPacket pkt;
 
-					String input = reader.readLine();
+					input = reader.readLine();
 					String[] splitInput = input.split(" ");
 					switch (splitInput[0].toUpperCase()) {
 
@@ -82,53 +93,62 @@ public class ClientApplication extends Thread {
 							new ApplicationThread(true, pkt).start();
 							break;
 
-						case "3" :
+						case "3" : // list all active up/download threads
 							print(getThreads());
 							break;
 
-						case "4" :
-							paused = true;
-
-							// Update list of current threads.
+						case "4" : // pause all active up/download threads
 							getThreads();
+							if (currentThreads.size() > 0) {
 
-							// Send ACK_PAUSE to active server thread
-							data = Utils.createFlagData(Utils.ACK_PAUSE, null);
-							pkt = new DatagramPacket(data, data.length,
-									serverAddress, port);
-							for (ApplicationThread t : currentThreads) {
-								t.sendPacket(data);
+								paused = true;
+
+								// Update list of current threads.
+								getThreads();
+
+								// Send ACK_PAUSE to active server thread
+								data = Utils.createFlagData(Utils.ACK_PAUSE,
+										null);
+								pkt = new DatagramPacket(data, data.length,
+										serverAddress, port);
+								for (ApplicationThread t : currentThreads) {
+									t.sendPacket(data);
+								}
+
+								// Set all client threads to paused
+								setPause(paused);
+
+								// Any input will resume the threads.
+								print("Press enter to resume the up/downloads.");
+								input = reader.readLine();
+
+								paused = false;
+
+								// Send ACK_UNPAUSE to all active server
+								// threads.
+								data = Utils.createFlagData(Utils.ACK_UNPAUSE,
+										null);
+								pkt = new DatagramPacket(data, data.length,
+										serverAddress, port);
+								for (ApplicationThread t : currentThreads) {
+									t.sendPacket(data);
+								}
+
+								// Set all client threads to not-paused
+								setPause(paused);
 							}
-
-							// Set all client threads to paused
-							setPause(paused);
-
-							// Any input will resume the threads.
-							print("Press enter to resume the up/downloads.");
-							input = reader.readLine();
-
-							paused = false;
-
-							// Send ACK_UNPAUSE to all active server threads.
-							data = Utils.createFlagData(Utils.ACK_UNPAUSE,
-									null);
-							pkt = new DatagramPacket(data, data.length,
-									serverAddress, port);
-							for (ApplicationThread t : currentThreads) {
-								t.sendPacket(data);
+							else {
+								print("Nothing to pause.");
 							}
-
-							// Set all client threads to not-paused
-							setPause(paused);
 							break;
-							
-						case "5" :
+
+						case "5" : // display and change the clietn path
 							print("== Current path ==");
 							print(Utils.getClientPath());
 
 							print("\nEnter new path:");
 							input = reader.readLine();
-							boolean validPath = Utils.setClientPath(input);
+							validPath = Utils.setClientPath(input);
 							while (!validPath) {
 								print("Invalid path, please enter a valid path:");
 								input = reader.readLine();
@@ -136,13 +156,13 @@ public class ClientApplication extends Thread {
 							}
 							break;
 
-						case "6" :
+						case "6" : // exit
 							running = false;
 							break;
-							
-						case "HELP":
+
+						case "HELP" :
 							print(Utils.RASPBERRYMENU);
-							
+
 						default :
 							// err("Unknown command.");
 					}
@@ -158,6 +178,10 @@ public class ClientApplication extends Thread {
 		}
 	}
 
+	/**
+	 * Sends a broadcast and waits for the server to reply in order to obtain its ip-address.
+	 * @return true if the server is located; false otherwise.
+	 */
 	private boolean locateServer() {
 		// Find the server using UDP broadcast
 		try (DatagramSocket socket = new DatagramSocket()) {
@@ -166,7 +190,7 @@ public class ClientApplication extends Thread {
 
 			// Try 255.255.255.255
 			DatagramPacket sendPacket = new DatagramPacket(sendData,
-					sendData.length, InetAddress.getByName("255.255.255.255"),
+					sendData.length, InetAddress.getByName("192.168.1.255"),
 					port);
 			socket.send(sendPacket);
 
@@ -191,6 +215,10 @@ public class ClientApplication extends Thread {
 
 	}
 
+	/**
+	 * Creates a String with all the active up/download threads
+	 * @return String with all the name of the active threads.
+	 */
 	private String getThreads() {
 		List<ApplicationThread> deadThread = new ArrayList<>();
 
@@ -212,7 +240,7 @@ public class ClientApplication extends Thread {
 	}
 
 	/**
-	 * 
+	 * Sets the paused-boolean in the active threads.
 	 * @param paused
 	 */
 	private void setPause(boolean paused) {
@@ -220,11 +248,18 @@ public class ClientApplication extends Thread {
 			t.setPause(paused);
 		}
 	}
-
+	/**
+	 * Prints the message.
+	 * @param msg message
+	 */
 	public static void print(String msg) {
 		System.out.println(msg);
 	}
 
+	/**
+	 * Prints the error message.
+	 * @param msg message
+	 */
 	public static void err(String msg) {
 		System.err.println("ERROR: " + msg);
 	}

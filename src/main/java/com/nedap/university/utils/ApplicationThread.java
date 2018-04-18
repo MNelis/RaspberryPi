@@ -31,11 +31,26 @@ public class ApplicationThread extends Thread {
 	private String msg;
 	private int currentPktNo;
 
+	private String checksumReceived;
+	private String filename;
+
+	/**
+	 * Constructs a new ApplicationThread
+	 * @param isClient boolean. true if the ClientApplication starts this thread; false otherwise.
+	 * @param pkt DatagramPacket 
+	 */
 	public ApplicationThread(boolean isClient, DatagramPacket pkt) {
 		this.isClient = isClient;
 		this.pkt = pkt;
 	}
 
+	/**
+	 * Constructs a new ApplicationThread
+	 * @param isClient isClient boolean. true if the ClientApplication starts this thread; false otherwise.
+	 * @param msg message
+	 * @param address InetAddress of the server
+	 * @param port port number
+	 */
 	public ApplicationThread(boolean isClient, String msg, InetAddress address,
 			int port) {
 		this.isClient = isClient;
@@ -45,8 +60,11 @@ public class ApplicationThread extends Thread {
 		pkt.setPort(port);
 	}
 
+	/**
+	 * Runs the ApplicationThread.
+	 */
 	public void run() {
-//		print("New thread: " + this.getName());
+		// print("New thread: " + this.getName());
 		try {
 			socket = new DatagramSocket();
 		}
@@ -57,6 +75,9 @@ public class ApplicationThread extends Thread {
 		init();
 	}
 
+	/**
+	 * Depending on its construction, the initial tasks of the ApplicationThread are executed.
+	 */
 	private void init() {
 		if (pkt.getLength() == 0) {
 			if (Utils.containsFile(isClient, msg)) {
@@ -86,14 +107,17 @@ public class ApplicationThread extends Thread {
 				e.printStackTrace();
 			}
 			catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		// print("Closing socket");
 		socket.close();
 	}
 
+	/**
+	 * Sends a DatagramPacket as reply the received pkt.
+	 * @param pkt received packet, from which the address and port is used.
+	 * @param data data to send.
+	 */
 	private void sendPacket(DatagramPacket pkt, byte[] data) {
 		address = pkt.getAddress();
 		port = pkt.getPort();
@@ -110,10 +134,18 @@ public class ApplicationThread extends Thread {
 		}
 	}
 
+	/**
+	 * Sends a DatagramPacket.
+	 * @param data data to send
+	 */
 	public void sendPacket(byte[] data) {
 		sendPacket(this.pkt, data);
 	}
 
+	/**
+	 * Receives a DatageamPacket, with timeout.
+	 * @param timeOutSec number of seconds to timeout.
+	 */
 	private void receivePacket(int timeOutSec) {
 		DatagramPacket pkt = new DatagramPacket(Utils.BUF, Utils.BUF.length);
 		try {
@@ -130,6 +162,13 @@ public class ApplicationThread extends Thread {
 
 	}
 
+	// TODO explain exceptions
+	/**
+	 * Processes a received packet based of its flags.
+	 * @param pkt received packet
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
 	private void processPacket(DatagramPacket pkt)
 			throws IOException, InterruptedException {
 		int flag = pkt.getData()[0];
@@ -142,8 +181,6 @@ public class ApplicationThread extends Thread {
 		else {
 			data = Arrays.copyOfRange(pkt.getData(), 0, Utils.HEADER);
 		}
-
-		// print("Received data: " + pkt.getLength() + " bytes");
 
 		switch (flag) {
 			// Both applications.
@@ -205,15 +242,16 @@ public class ApplicationThread extends Thread {
 			case Utils.DATA_ANN :
 				currentPktNo = 0;
 				receiving = true;
+				checksumReceived = (new String(data)).substring(0, 40);
 				String[] dataSplit = new String(data).split(" ", 2);
-				expNoPkts = Integer.parseInt(dataSplit[0]);
-				String name = dataSplit[1];
+				expNoPkts = Integer.parseInt(dataSplit[0].substring(40));
+				filename = dataSplit[1];
 
-				print("Received announcement for file '" + name + "', "
+				print("Received announcement for file '" + filename + "', "
 						+ (expNoPkts) + " packets expected.");
 
 				pkts = new byte[expNoPkts + 1][0];
-				pkts[currentPktNo] = name.getBytes();
+				pkts[currentPktNo] = filename.getBytes();
 
 				byte[] dataACK1 = Arrays.copyOfRange(pkt.getData(), 0,
 						Utils.HEADER);
@@ -244,6 +282,14 @@ public class ApplicationThread extends Thread {
 
 						if (currentPktNo == pkts.length - 1) {
 							byte[] fileContents = Utils.defragmentData(pkts);
+							String checksumFile = Utils.checkSum(fileContents);
+							if (checksumFile.equals(checksumReceived)) {
+								print("Checksum checks out!");
+							}
+							else {
+								print("Different checksums...");
+							}
+
 							bytesFile = fileContents.length;
 							String nameFile = new String(pkts[0]);
 							print("Received " + nameFile + ", "
@@ -253,6 +299,14 @@ public class ApplicationThread extends Thread {
 									nameFile);
 							receiving = false;
 						}
+					}
+					else if ((currentPktNo)
+							% Utils.PKTNORANGE == pkt.getData()[2]) {
+						byte[] dataACK = Arrays.copyOfRange(pkt.getData(), 0,
+								Utils.HEADER);
+						dataACK[0] = Utils.ACK;
+						sendPacket(pkt, dataACK);
+						noRetransmissions++;
 					}
 
 				}
@@ -278,10 +332,19 @@ public class ApplicationThread extends Thread {
 		}
 	}
 
+	/**
+	 * Sends a complete file, fragmented into small packets.
+	 * @param fileID number to identify the file
+	 * @param fileContents the contents of the file
+	 * @param fileName the name of the file
+	 */
 	private void sendFile(byte fileID, byte[] fileContents, String fileName) {
+		filename = fileName;
 		startTime = System.nanoTime();
 		bytesFile = fileContents.length;
 		noRetransmissions = 0;
+		String checksum = Utils.checkSum(fileContents);
+
 		int attempt = 0;
 
 		int filePointer = 0;
@@ -295,7 +358,7 @@ public class ApplicationThread extends Thread {
 
 		byte[] nxtPkt;
 
-		byte[] data = (numberOfPackets + " " + fileName).getBytes();
+		byte[] data = (checksum + numberOfPackets + " " + fileName).getBytes();
 
 		nxtPkt = new byte[Utils.HEADER + data.length];
 
@@ -357,6 +420,13 @@ public class ApplicationThread extends Thread {
 
 	}
 
+	// TODO explain exceptions
+	/**
+	 * Receives until a file is completely received.
+	 * @throws SocketException
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
 	private void receiveFile()
 			throws SocketException, IOException, InterruptedException {
 		startTime = System.nanoTime();
@@ -381,29 +451,39 @@ public class ApplicationThread extends Thread {
 		statistics();
 	}
 
-	
-	public void statistics() {
+	/**
+	 * Prints some statistics of the file transfer.
+	 */
+	private void statistics() {
 		if (isClient) {
-			String result = "\n== Statistics ==\n";
+			String result = "\n== Statistics ==";
+
+			result += ("\nFile            " + filename);
+			int size = bytesFile;
+			if(bytesFile < 1024) {
+				result += ("\nSize            " + size + "B");
+			} 
+			else if (bytesFile >= 1024 && bytesFile < 1024*1024) {
+				result += ("\nSize            " + size/1024 + "KB");
+			} else {
+				result += ("\nSize            " + size/(1024*1024) + "MB");
+			}
+
+			result += ("\nPackets         " + expNoPkts);
+
 			long elapsedTime = endTime - startTime;
 			double seconds = ((double) elapsedTime) / 1E9;
 			double avSpeed = bytesFile / seconds;
-			if (avSpeed > 1024 && avSpeed < 1024 * 1024) {
+			if (avSpeed >= 1024 && avSpeed < 1024 * 1024) {
 				double speedKB = avSpeed / 1024;
-				result += String.format(
-						"Average speed   %.1f KB/s \nPackets         %d ",
-						speedKB, expNoPkts);
+				result += String.format("\nAverage speed   %.1f KB/s", speedKB);
 			}
-			else if (avSpeed > 1024 * 1024) {
+			else if (avSpeed >= 1024 * 1024) {
 				double speedMB = avSpeed / (1024 * 1024);
-				result += String.format(
-						"Average speed   %.1f MB/s \nPackets         %d ",
-						speedMB, expNoPkts);
+				result += String.format("\nAverage speed   %.1f MB/s ", speedMB);
 			}
 			else {
-				result += String.format(
-						"Average speed   %.1f B/s  \nPackets         %d ",
-						avSpeed, expNoPkts);
+				result += String.format("\nAverage speed   %.1f B/s", avSpeed);
 			}
 			if (noRetransmissions != -1) {
 				result += String.format("\nRetransmissions %d",
@@ -415,10 +495,18 @@ public class ApplicationThread extends Thread {
 
 	}
 
+	/**
+	 * Sets the boolean paused
+	 * @param paused boolean
+	 */
 	public void setPause(boolean paused) {
 		this.paused = paused;
 	}
 
+	/**
+	 * Prints the message on the corresponding application.
+	 * @param msg message
+	 */
 	private void print(String msg) {
 		if (isClient) {
 			ClientApplication.print(msg);
@@ -428,6 +516,10 @@ public class ApplicationThread extends Thread {
 		}
 	}
 
+	/**
+	 * Prints the error message on the corresponding application.
+	 * @param msg
+	 */
 	private void err(String msg) {
 		if (isClient) {
 			ClientApplication.err(msg);
