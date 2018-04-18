@@ -7,7 +7,7 @@ Final assignment of the second module.
 - Done!
 
 ### Starting the client application
-Make sure the Pi started and you are connected to its ad-hac wifi network `NedapUniverisityMN`.
+Make sure the Pi started and you are connected to its ad-hoc wifi network `NedapUniverisityMN`.
 - Open command prompt at the location of the `ClientApplication.jar`-file.
 - Enter `java -jar ClientApplication.jar`
 
