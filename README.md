@@ -7,7 +7,7 @@ Final assignment of the second module.
 - Done!
 
 ### Starting the client application
-Make sure the Pi started and you are connected to its ad-hac wifi network 'NedapUniverisityMN'.
+Make sure the Pi started and you are connected to its ad-hac wifi network `NedapUniverisityMN`.
 - Open command prompt at the location of the `ClientApplication.jar`-file.
 - Enter `java -jar ClientApplication.jar`
 
@@ -26,4 +26,6 @@ When a client finds the server, a menu is shown with the following commands:
 - `5` to change the path at which files will be written to and read from. By returning no input, the path remains the same.
 - `6` to exit the application.
 
-And eventhough it is not listed, the command `HELP` will show the menu agai
+And eventhough it is not listed, the command `HELP` will show the menu again.
+
+Please note that the option to transfer multiple files at the same time is disabled in this version.
