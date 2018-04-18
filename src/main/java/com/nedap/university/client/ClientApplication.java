@@ -55,8 +55,9 @@ public class ClientApplication extends Thread {
 						case "0" : // upload file to server.
 							getThreads();
 							if (currentThreads.size() > 0) {
-								print("Since transfering several files at the same time doesn't work as desired, "
+								print("Since transfering several files at the same time doesn't work as desired, \n"
 										+ "this function is disabled in this version.");
+								break;
 							}
 							else {
 								print("(upload) Enter the filename:");
@@ -76,9 +77,11 @@ public class ClientApplication extends Thread {
 							}
 
 						case "1" : // download file to server
+							getThreads();
 							if (currentThreads.size() > 0) {
-								print("Since transfering several files at the same time doesn't work as desired, "
+								print("Since transfering several files at the same time doesn't work as desired, \n"
 										+ "this function is disabled in this version.");
+								break;
 							}
 							else {
 								print("(download) Enter the filename:");
@@ -200,6 +203,7 @@ public class ClientApplication extends Thread {
 	private boolean locateServer() {
 		// Find the server using UDP broadcast
 		try (DatagramSocket socket = new DatagramSocket()) {
+			
 			socket.setBroadcast(true);
 			byte[] sendData = new byte[]{(byte) Utils.MSG_DSC};
 
@@ -211,7 +215,7 @@ public class ClientApplication extends Thread {
 
 			byte[] buf = new byte[15000];
 			DatagramPacket receivePacket = new DatagramPacket(buf, buf.length);
-
+			
 			socket.setSoTimeout(3000);
 			socket.receive(receivePacket);
 			serverAddress = receivePacket.getAddress();

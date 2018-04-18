@@ -14,7 +14,7 @@ public class Utils {
 	public static String CLIENTPATH = "C:/Users/marjan.nelis/Desktop/client/";
 	public static final String SERVERPATH = "C:/Users/marjan.nelis/Desktop/server/";
 
-	public static final int DEFAULTPORT = 8765;
+	public static final int DEFAULTPORT = 8888;
 	public static final int BUFLENGTH = 1500;
 	public static final byte[] BUF = new byte[BUFLENGTH];
 
